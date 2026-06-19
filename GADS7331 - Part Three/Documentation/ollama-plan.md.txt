@@ -1,0 +1,5 @@
+GADS7331 - Part Two
+ollama-plan.md
+
+Model Choice:
+Llama 3.2: 3B

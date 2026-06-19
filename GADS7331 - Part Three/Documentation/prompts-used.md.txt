@@ -1,0 +1,55 @@
+# GADS7331 Part Two — Prompts Used
+
+All user prompts requested across project sessions, in chronological order.
+
+---
+
+Create a MonoBehaviour script called 'PlayerQuest' that is to handle the score for the player. This script is to also include three arrays and serialised fields. One of the serialised fields is to allow the attachment of a txt file and others for the attachment of colliders within a scene. When the 'e' button is pressed a random data point from each of the arrays is to be taken and written to the txt file. One of these arrays will be for locations so it will be a string instead of an int
+
+
+Rework the arrays to make them contain three elements each. Make it so that there are three serializedfields that are to contain colliders. Create three serializedfields that are to contain prefabs. The fields containing colliders are to be used by the 'location' array. The fields containing prefabs are to be used by 'item'. After the player accepts the quest teh code is to find the collider corresponding to the one of the same number or element in 'location'. After this collider has been selected the 'item' element number is to be selected and the corresponding prefab is to be spawn randomly inside this collider. The amount of times this prefab is to be spawned inside this collider is to be specified by 'amount'. Whenever the player comes into contact with the collider of the prefab increase the score of the player by one and destroy the prefab instance. Set the score requirement the player needs to reach to the amount of the item spawned when the player starts the quest. While the score is less than the required score e is disabled. When the player reaches the amount needed send a Debug message saying the player reached the amount needed.
+
+
+Ensure the elements chosen are written to the text file. When the player completes the quest have those elements inside of the text file cleared so it can be reused
+
+
+Divide the script into three new MonoBehaviour scripts. Create a 'PlayerStats' script to contain the score and the updating. This script is to be designed to be attached to the player object. Create a 'Collectibles' script to contain the prefabs and the collection data around it. Keep the 'PlayerQuest' script and use it as the main file that accesses the other files for the data it needs.
+
+
+Where do I attach each script
+
+
+What is the setup needed for each script
+
+
+Create a serializefield inside the player quest script to attach a collider into. When the player is in this collider then the player can press e to get a quest. The previous e condition where it is disabled while a quest is currently active still exists
+
+
+Add a debug.log to declare whether or not the quest activation, the location selected, and the item spawning was successful
+
+
+pressing e is not being detected
+
+
+E works, spawning works, however now the spawned object is not being destroyed upon being picked up, score is not changing. Alongside resolving the issue add a debug log to confirm detection of colliders between player and the collectible
+
+
+A new interaction is to take place between the 'PlayerQuest' script, pressing 'e' to start the quest, the Text UI object inside the 'InputField' obj in Canvas, and the text file containing the data from the arrays. What is to happen now is when the player presses 'e' within that collider and the quest begins, the data within the text file used as the Quest Log File is to now be pasted into 'Text' which can be found in 'InputField' -> 'Text Chat Input' -> 'LLM Canvas'.
+
+
+While the quest is active hide the 'Send Button' and 'Text Chat Input' and when the quest parameters are completed reactivate them
+
+
+After the player presses 'e' the send button is to be checked as having been clicked before being hidden
+
+
+using the txt file refinements-changes.md write down the changes made within this project leading up to the project's current state
+
+
+Access the prompts-used.md text file to write down all prompts I have requested. Leave an additional line inbetween
+
+
+Update Refinements-changes.md with changes made in this version by adding it into pre-existing text document
+
+
+Update prompts used with refinements-changes.md changes

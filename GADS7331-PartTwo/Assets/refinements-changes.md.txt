@@ -1,0 +1,213 @@
+# GADS7331 Part Two — Project Refinements & Changes
+
+This document records the changes made to the quest/collectible system from the initial prototype through the project's current state.
+
+---
+
+## 1. Initial `PlayerQuest` (single script)
+
+- Created `Assets/Scripts/PlayerQuest.cs` as a MonoBehaviour for player score and quest sampling.
+- **Serialized fields:** `TextAsset` for a `.txt` log file, `Collider[]` for scene colliders, three data arrays.
+- **Arrays:** `m_ScoreValues` (int), `m_Locations` (string), `m_QuestIds` (int).
+- **On E press:** picked one random value from each array, added score from the int array, appended a timestamped line to a file under `Application.persistentDataPath`.
+
+---
+
+## 2. Quest gameplay rework (3 slots, spawn & collect)
+
+- Replaced generic arrays with fixed **3-element** quest data:
+  - `m_Locations` (string labels)
+  - `m_Item` (int → prefab slot 0–2)
+  - `m_Amount` (int → spawn count and score goal)
+- **Three location colliders:** `m_LocationCollider0`–`2` (aligned with location rows).
+- **Three item prefabs:** `m_ItemPrefab0`–`2` (chosen via `m_Item[row]`).
+- **Accept quest (E when idle):**
+  - Random location row → spawn zone collider.
+  - Random item row → prefab slot + spawn count.
+  - Spawns `m_Amount[itemRow]` prefabs at random points inside the location collider.
+- **Score:** reset to 0 on accept; goal = spawn amount; +1 per pickup.
+- **E gating:** disabled while `m_IsQuestActive` (until all items collected).
+- **Completion:** `Debug.Log` when score reaches required amount.
+- Added `QuestSpawnedItem` on spawned instances: `OnTriggerEnter` with player tag → `ReportItemCollected()` → destroy instance.
+
+---
+
+## 3. Quest log text file
+
+- Reintroduced `m_QuestLogFile` (`TextAsset`).
+- **On accept:** writes key/value lines (`LocationIndex`, `LocationName`, `ItemIndex`, `ItemArrayValue`, `PrefabSlot`, `PrefabName`, `Amount`) to persistent path.
+- **On complete:** clears the file (`File.WriteAllText` empty string) for reuse.
+- Editor context menu: **Debug: Log quest log file path**.
+
+---
+
+## 4. Script split (architecture)
+
+| Script | Role | Attach to |
+|--------|------|-----------|
+| `PlayerStats.cs` | Score (`ResetScore`, `AddScore`, `Score` property) | **Player** |
+| `Collectibles.cs` | `m_Item`, `m_Amount`, three prefabs, player tag; `QuestSpawnedItem` | **Quest manager** (e.g. QuestSystem) |
+| `PlayerQuest.cs` | Main controller: locations, accept zone, log, spawning, E input | **Quest manager** (with Collectibles) |
+
+- `PlayerQuest` references `PlayerStats` and `Collectibles` instead of owning score/prefab data directly.
+
+---
+
+## 5. Quest accept zone
+
+- Added `m_QuestAcceptCollider` — player must be inside this trigger to press **E** and start a quest.
+- Added `QuestAcceptZoneListener` on the accept collider (auto-added at runtime): `OnTriggerEnter` / `OnTriggerExit` notify `PlayerQuest`.
+- **E rules unchanged:** still blocked while a quest is active.
+
+---
+
+## 6. Structured debug logging (`AcceptQuest`)
+
+- Logs **SUCCESSFUL** / **UNSUCCESSFUL** for:
+  - Quest activation (overall)
+  - Location selection (collider assigned?)
+  - Item spawning (prefab, amount, instantiate count)
+- Partial spawn failure rolls back quest state (inactive, score reset).
+
+---
+
+## 7. E key / Input System fix
+
+- Project uses **new Input System** (`PlayerMvmnt`); legacy `Input.GetKeyDown(KeyCode.E)` alone failed.
+- `WasInteractKeyPressedThisFrame()` checks `Keyboard.current.eKey.wasPressedThisFrame` **and** legacy input.
+- Accept zone: position fallback via `IsPlayerInsideAcceptZoneByPosition()` using `PlayerStats.transform`.
+- `QuestAcceptZoneListener` also detects player via `PlayerStats` in hierarchy (not only tag).
+- Optional `m_DebugInteractInput` logs E detected / ignored reasons.
+
+---
+
+## 8. Pickup / score fix + collision debug
+
+- **Problem:** spawned items not destroyed; score not updating after Input System changes.
+- **`QuestSpawnedItem` updates:**
+  - Player detection via `GetComponentInParent<PlayerStats>()` or tag.
+  - `OnTriggerEnter` and `OnCollisionEnter`.
+  - `EnsurePickupPhysics()`: kinematic Rigidbody, triggers on colliders, fallback sphere trigger.
+  - Debug logs for every contact, ignored contacts, confirmed pickups.
+- **`ReportItemCollected`:** clearer warnings; logs score progress when debug enabled.
+- **`PlayerStats.AddScore`:** logs score after each update.
+
+---
+
+## 9. Neocortex chat UI integration
+
+- **Quest log in UI:** after accept, log file content is shown in `Canvas > Text Chat Input > InputField` (`m_QuestLogInputField`).
+- **Scene wiring:** `GameScene.unity` — `m_QuestLogInputField` linked to Canvas prefab InputField.
+- **Auto-resolve:** finds InputField under `Text Chat Input` if unassigned.
+- **On complete:** clears input field and log file; re-shows chat UI.
+
+---
+
+## 10. Chat UI visibility during active quest
+
+- While quest is active: hide **`Text Chat Input`** root (hides InputField + **Send Button**).
+- On quest complete: `SetQuestChatUiActive(true)`.
+- On spawn failure: chat UI stays visible.
+
+---
+
+## 11. Auto-send quest log to LLM
+
+- On successful quest start (after log written to input):
+  1. `InvokeQuestLogSendButtonClick()` — `Button.onClick.Invoke()` on Send Button (same as `NeocortexTextChatInput.Send()`).
+  2. Then `SetQuestChatUiActive(false)`.
+- Delivers quest log to Neocortex/Ollama chat before hiding UI.
+
+---
+
+## 12. Narrative & LLM persona pivot (forest golem theme)
+
+- Replaced the **demonic mob boss / Initiate / soul orb** LLM persona with an **ancient caretaker golem** who sends the player to retrieve wandering forest spirits.
+- Updated the Neocortex **`systemPrompt`** override on the Canvas prefab instance in `GameScene.unity`.
+- New prompt rules:
+  - Stay in character as a golem head buried in the ground; express guilt over failing the forest.
+  - Read **location, item type, and amount** only from quest log data in chat — do not invent values.
+  - Treat each new quest log as proof the player completed the previous quest.
+  - Keep dialogue brief; remember prior quest details for consistency across turns.
+
+---
+
+## 13. Quest location renaming
+
+- Updated `PlayerQuest.m_Locations` in `GameScene.unity` to match the forest theme:
+  - `Warehouse` → **Southern Clearing**
+  - `Bar` → **Excalibur's Stone**
+  - `Underpass` → **The Looter's Leftovers**
+- Location collider wiring (`m_LocationCollider0`–`2`) unchanged; only display names / log output updated.
+
+---
+
+## 14. Golem quest-giver visual (Kevin Iglesias asset)
+
+- Imported **Kevin Iglesias — Humanoid Giant** under `Assets/Imported Assets/Kevin Iglesias/`.
+- Added **`GiantModel01 - Golem.fbx`** as a child of the **`QuestGiver`** hierarchy in `GameScene.unity`.
+- Prefab instance customization:
+  - Renamed instance to **`GiantModel01 - Golem`**.
+  - **Removed the body mesh** from the instance so only the head remains visible (buried golem concept).
+  - Applied custom material **`Assets/Mats/GolemMat.mat`** to remaining mesh renderers.
+  - Scaled ~**8.7×** and rotated/positioned locally beside the quest accept collider and world-space chat UI.
+
+---
+
+## 15. Scene layout & camera adjustments
+
+- **`PlayChar`** spawn moved to `(3.88, 2, -34.77)` (forest play area).
+- **`CineMachineControls`** moved to `(3.88, 4.25, -38.77)` to stay aligned with the new player start.
+- **Chat InputField** (world-space Canvas on `QuestGiver`): repositioned and rotation flattened so the Neocortex UI sits correctly next to the golem head.
+
+---
+
+## 16. Material cleanup
+
+- Removed unused **`Assets/Mats/RoadMat.mat`** (urban/road theme no longer used).
+- Added **`Assets/Mats/GolemMat.mat`** for the golem head material override.
+
+---
+
+## Current state (summary)
+
+### Scripts (`Assets/Scripts/`)
+- `PlayerQuest.cs` — main quest flow, log file, UI, accept zone, debug
+- `PlayerStats.cs` — score on player
+- `Collectibles.cs` — item data, prefabs, `QuestSpawnedItem`
+- `PlayerMvmnt.cs`, `CamCtrl.cs` — movement/camera (unchanged by quest work)
+
+### Quest flow (play mode)
+1. Player enters **quest accept zone** (near the buried golem on `QuestGiver`) → presses **E** (new Input System + legacy).
+2. Random location + item rows → write log → display in chat InputField → spawn collectibles.
+3. **Send** invoked programmatically → golem caretaker LLM generates brief spirit-retrieval dialogue → chat UI hidden.
+4. Player collects items (+1 score each) → destroy instance.
+5. Score reaches spawn amount → quest ends → log cleared → input cleared → chat UI restored → **E** available again in accept zone.
+
+### Key serialized references (`PlayerQuest`)
+- `m_PlayerStats`, `m_Collectibles`
+- `m_QuestLogFile`, `m_QuestLogInputField`, `m_TextChatInputRoot`, `m_SendButton`
+- `m_LocationCollider0`–`2`, `m_Locations[3]` (**Southern Clearing**, **Excalibur's Stone**, **The Looter's Leftovers**)
+- `m_QuestAcceptCollider`
+- `m_DebugInteractInput` (default on)
+
+### Assets / scene
+- `Assets/Scenes/GameScene.unity` — QuestManager, QuestGiver (golem + accept zone + world-space Canvas), zone/collider wiring
+- `Assets/Imported Assets/LLM Prefabs/Canvas.prefab` — Neocortex chat UI hierarchy (system prompt overridden in scene)
+- `Assets/Imported Assets/Kevin Iglesias/Characters/Humanoid Giant/` — golem head model (`GiantModel01 - Golem.fbx`)
+- `Assets/Mats/GolemMat.mat` — golem head material
+- `Assets/SystemPrompt.txt.txt` — standalone prompt asset (scene Canvas uses the golem persona override)
+
+---
+
+## Scene setup checklist
+
+- [ ] **Player:** `PlayerStats`, tag `Player`, Rigidbody + collider (spawn aligned with forest play area)
+- [ ] **QuestSystem:** `PlayerQuest` + `Collectibles`; wire Player Stats & Collectibles
+- [ ] **QuestGiver:** golem head model, quest accept trigger, world-space Neocortex Canvas
+- [ ] **Quest accept zone:** trigger collider → `m_QuestAcceptCollider`
+- [ ] **Three location zone colliders** + `m_Locations` labels (Southern Clearing, Excalibur's Stone, The Looter's Leftovers)
+- [ ] **Collectibles:** three prefabs, `m_Item` / `m_Amount` per row (amounts > 0)
+- [ ] **Quest log TextAsset** + chat UI references on `QuestGiver` Canvas instance
+- [ ] **Neocortex system prompt** on Canvas instance matches golem caretaker persona
+- [ ] Item prefabs: trigger colliders (or rely on runtime `EnsurePickupPhysics`)
