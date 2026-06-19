@@ -1,0 +1,17 @@
+fileFormatVersion: 2
+guid: 3b651cde4e4eb9544af4b47e38695d26
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences:
+  - m_PlayerStats: {instanceID: 0}
+  - m_Collectibles: {instanceID: 0}
+  - m_QuestLogFile: {fileID: 4900000, guid: 1b4a42d4bed821e4aabe9fb722fcf4b0, type: 3}
+  - m_LocationCollider0: {instanceID: 0}
+  - m_LocationCollider1: {instanceID: 0}
+  - m_LocationCollider2: {instanceID: 0}
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
